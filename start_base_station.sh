@@ -1,41 +1,42 @@
 #!/bin/bash
 
-#set to true if both rover & base station are connected to the one pi
-UNITEDDEVICE=1
+#Set true if both rover & base station are connected to the same pi.
+UNITEDDEVICE=0
 
 TS=`date +%Y%m%d-%H%M`
-STR2STR=str2str
-GNSSRTKLOC=../../..
-LOGFOLDER=logs_for_modified_scripts
-
-DEVICE=ttyACM$1
 
 SURVEY_ACCURACY_M=10
 SURVEY_MIN_TIME_S=120
+
+GNSS_PATH=/home/pi/GNSS_RTK
+LOG_PATH=/home/pi/GNSS_RTK/ublox_f9p/oisins_branch/rtklib_basics/logs_for_modified_scripts
 
 if [ "$#" -ne 1 ]; then
     echo "./start_base_station <device-port-number>"
     exit 1
 fi
 
-LOCALHOST_RAWOUT=21104
-LOCALHOST_RTCM3OUT=21101
+RTCM3OUT=21101
+RAWOUT=21102
+
+DEV=ttyACM$1
 
 if [ ${UNITEDDEVICE} -eq 1 ]; then
     echo "Running as though rover & station are on the same pi"
 else
     echo "Running as though rover & station are on different pis"
-    LOCALHOST_RAWOUT=21102
-    LOCALHOST_RTCM3OUT=21101
+    RTCM3OUT=21103
+    RAWOUT=21102
 fi
 
-${GNSSRTKLOC}/src/ubx/ubx_cfg_tmode3 $SURVEY_MIN_TIME_S $SURVEY_ACCURACY_M -b > /dev/${DEVICE}
+${GNSS_PATH}/src/ubx/ubx_cfg_tmode3 $SURVEY_MIN_TIME_S $SURVEY_ACCURACY_M -b > /dev/${DEV}
 
-echo "Starting raw data streaming on port ${LOCALHOST_RAWOUT}"
-${STR2STR} -in serial://${DEVICE}:230400#ubx -out tcpsvr://:${LOCALHOST_RAWOUT} -c ./${GNSSRTKLOC}/cfg_f9p_basestation.cmd >& ${LOGFOLDER}/base-${TS}.log &
+echo "Starting raw data streaming on port $RAWOUT"
+
+str2str -in serial://${DEV}:230400#ubx -out tcpsvr://:${RAWOUT} -c ${GNSS_PATH}/ublox_f9p/cfg_f9p_basestation.cmd >& ${GNSS_PATH}/ublox_f9p/oisins_branch/rtklib_basics/logs_for_modified_scripts/base-${TS}.log &
+
 sleep 1
-netcat localhost ${LOCALHOST_RAWOUT} > ${LOGFOLDER}/base-${TS}.ubx &
 
-# Make RTCM3 available on port ${LOCALHOST_RTCM3OUT}
-echo "Starting RTCM3 server on port ${LOCALHOST_RTCM3OUT}"
-netcat localhost ${LOCALHOST_RTCM3OUT} | ./${GNSSRTKLOC}/src/rtcm3_filter | ${STR2STR} -out tcpsvr://:${LOCALHOST_RTCM3OUT} >& ${LOGFOLDER}/base-rtcm-${TS}.log &
+echo "Starting RTCM3 server on port $RTCM3OUT"
+
+netcat localhost ${RAWOUT} | ${GNSS_PATH}/src/rtcm3_filter | str2str -out tcpsvr://:${RTCM3OUT} >& ${GNSS_PATH}/ublox_f9p/oisins_branch/rtklib_basics/base-rtcm-{TS}.log &
