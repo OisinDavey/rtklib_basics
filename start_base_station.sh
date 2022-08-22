@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #Set true if both rover & base station are connected to the same pi.
-UNITEDDEVICE=0
+UNITEDDEVICE=1
 
 TS=`date +%Y%m%d-%H%M`
 
@@ -17,7 +17,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 RTCM3OUT=21101
-RAWOUT=21102
+RAWOUT=21104
 
 DEV=ttyACM$1
 
@@ -39,4 +39,4 @@ sleep 1
 
 echo "Starting RTCM3 server on port $RTCM3OUT"
 
-netcat localhost ${RAWOUT} | ${GNSS_PATH}/src/rtcm3_filter | str2str -out tcpsvr://:${RTCM3OUT} >& ${GNSS_PATH}/ublox_f9p/oisins_branch/rtklib_basics/base-rtcm-{TS}.log &
+netcat localhost ${RAWOUT} | ${GNSS_PATH}/src/rtcm3_filter | str2str -out tcpsvr://:${RTCM3OUT} >& ${GNSS_PATH}/ublox_f9p/oisins_branch/rtklib_basics/logs_for_modified_scripts/base-rtcm-${TS}.log &
